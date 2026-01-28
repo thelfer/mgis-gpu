@@ -25,9 +25,9 @@
 #include "MGIS/Function/StridedCoalescedMemoryAccessFunctionViewBase.hxx"
 #include "MGIS/Function/Tensors.hxx"
 
-namespace mgis::gpu{
+namespace mgis::gpu {
 
-  inline constexpr auto elasticity = [](auto& sig, const auto& eto) {
+  inline constexpr auto elasticity = [](auto& sig, const auto& eto) __attribute__((always_inline)) {
     using Stensor = tfel::math::stensor<3u, real>;
     constexpr auto id = Stensor::Id();
     constexpr auto young = real{150e9};

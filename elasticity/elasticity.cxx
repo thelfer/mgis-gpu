@@ -17,18 +17,21 @@
 #include <locale>
 #include <iomanip>
 #include <type_traits>
-#include <tbb/info.h>
 #include "MGIS/Config.hxx"
-
-#ifdef _NVHPC_STDPAR_GPU
-#include <cuda_runtime.h>
-#endif
 
 #ifdef MGIS_USE_STL_PARALLEL_ALGORITHMS
 #ifdef __cpp_lib_parallel_algorithm
 #define MGIS_HAS_STL_PARALLEL_ALGORITHMS
 #endif
 #endif /* MGIS_USE_STL_PARALLEL_ALGORITHMS */
+
+#ifdef _NVHPC_STDPAR_GPU
+#include <cuda_runtime.h>
+#endif
+
+#if defined(MGIS_HAS_STL_PARALLEL_ALGORITHMS) && !defined(_NVHPC_STDPAR_GPU)
+#include <tbb/info.h>
+#endif
 
 namespace mgis::gpu {
 
@@ -110,7 +113,6 @@ namespace mgis::gpu {
     std::cout << program << " " << kernel_name << " kernel for "
               << format_number(n) << " integration points: "
               << format_number(elapsed_ms) << " ms\n";
-    std::cout << "TBB threads: " << tbb::info::default_concurrency() << "\n"; 
     return success;
   }  // end of execute
 
@@ -127,6 +129,7 @@ int main() {
   constexpr auto stlpar_name = "stlpar-gpu";
   constexpr bool use_gpu_timing = true;
 #else
+  std::cout << "TBB threads: " << tbb::info::default_concurrency() << "\n";
   constexpr auto stlpar_name = "stlpar-cpu";
   constexpr bool use_gpu_timing = false;
 #endif

@@ -40,10 +40,6 @@
 #Spack
 *.lock
 
-# IDES
-.vscode/
-.claude/
-
 # CMAKE BUILD
 build/
 installation/remote_deprecated/tfelgpu_installer.zip
