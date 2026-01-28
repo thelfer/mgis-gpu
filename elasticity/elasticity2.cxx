@@ -14,6 +14,8 @@
 #include <string_view>
 #include <sstream>
 #include <locale>
+#include <iomanip>
+#include <type_traits>
 #include "MGIS/Config.hxx"
 
 #ifdef _NVHPC_STDPAR_GPU
@@ -40,6 +42,9 @@ namespace mgis::gpu {
   std::string format_number(T value) {
     std::ostringstream oss;
     oss.imbue(std::locale(oss.getloc(), new thousand_sep));
+    if constexpr (std::is_floating_point_v<T>) {
+      oss << std::fixed << std::setprecision(2);
+    }
     oss << value;
     return oss.str();
   }
