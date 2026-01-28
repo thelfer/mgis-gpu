@@ -1,14 +1,16 @@
 /*!
  * \file   kernels.cxx
- * \brief    
+ * \brief
  * \author Thomas Helfer
  * \date   20/01/2026
  */
 
+#include <version>
+
 #ifdef MGIS_USE_STL_PARALLEL_ALGORITHMS
 #ifdef __cpp_lib_parallel_algorithm
 #define MGIS_HAS_STL_PARALLEL_ALGORITHMS
-#endif /* __cpp_lib_parallel_algorithm */
+#endif
 #endif /* MGIS_USE_STL_PARALLEL_ALGORITHMS */
 
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS

@@ -5,6 +5,7 @@
  * \date   22/01/2026
  */
 
+#include <version>
 #include <span>
 #include <chrono>
 #include <vector>
@@ -16,6 +17,7 @@
 #include <locale>
 #include <iomanip>
 #include <type_traits>
+#include <tbb/info.h>
 #include "MGIS/Config.hxx"
 
 #ifdef _NVHPC_STDPAR_GPU
@@ -25,12 +27,12 @@
 #ifdef MGIS_USE_STL_PARALLEL_ALGORITHMS
 #ifdef __cpp_lib_parallel_algorithm
 #define MGIS_HAS_STL_PARALLEL_ALGORITHMS
-#endif /* __cpp_lib_parallel_algorithm */
+#endif
 #endif /* MGIS_USE_STL_PARALLEL_ALGORITHMS */
 
 namespace mgis::gpu {
 
-  //! \brief timing policy: set to true to enable warmup + timing measurement
+  // timing policy: set to true to enable warmup + timing measurement
   constexpr bool is_timed = true;
 
   struct thousand_sep : std::numpunct<char> {
@@ -66,7 +68,7 @@ namespace mgis::gpu {
                               std::span<const real>,
                               const std::size_t);
 
-  template <bool IsTimed = false>
+  template <bool IsTimed = false, bool UseGpuTiming = false>
   bool execute(const KernelType kernel,
                const std::size_t n,
                std::string_view program,
@@ -74,41 +76,46 @@ namespace mgis::gpu {
     const auto eto_values = std::vector<real>(6 * n, real{});
     auto sig_values = std::vector<real>(6 * n, real{});
     auto K_values = std::vector<real>(6 * 6 * n, real{});
-    if constexpr (IsTimed) {
-      // warmup run with 1 integration point (separate small vectors)
-      {
-        auto warmup_eto = std::vector<real>(6, real{});
-        auto warmup_sig = std::vector<real>(6, real{});
-        auto warmup_K = std::vector<real>(36, real{});
-        kernel(warmup_K, warmup_sig, warmup_eto, 1);
-      }
-      // timed run
-#ifdef _NVHPC_STDPAR_GPU
+
+    if constexpr (!IsTimed) {
+      return kernel(K_values, sig_values, eto_values, n);
+    }
+
+    // warmup: triggers unified memory page faults + avoids lazy-instantiation
+    kernel(K_values, sig_values, eto_values, n);
+
+    // timed run
+    double elapsed_ms;
+    bool success;
+
+#if defined(_NVHPC_STDPAR_GPU)
+    if constexpr (UseGpuTiming) {
       cudaEvent_t start, stop;
       cudaEventCreate(&start);
       cudaEventCreate(&stop);
       cudaEventRecord(start);
-      const auto success = kernel(K_values, sig_values, eto_values, n);
+      success = kernel(K_values, sig_values, eto_values, n);
       cudaEventRecord(stop);
       cudaEventSynchronize(stop);
-      float elapsed_ms;
-      cudaEventElapsedTime(&elapsed_ms, start, stop);
+      float gpu_ms;
+      cudaEventElapsedTime(&gpu_ms, start, stop);
+      elapsed_ms = gpu_ms;
       cudaEventDestroy(start);
       cudaEventDestroy(stop);
-#else
-      const auto start = std::chrono::steady_clock::now();
-      const auto success = kernel(K_values, sig_values, eto_values, n);
-      const auto end = std::chrono::steady_clock::now();
-      const auto elapsed_ms =
-          std::chrono::duration<double, std::milli>(end - start).count();
+    } else
 #endif
-      std::cout << program << " " << kernel_name << " kernel for "
-                << format_number(n) << " integration points: "
-                << format_number(elapsed_ms) << " ms\n";
-      return success;
-    } else {
-      return kernel(K_values, sig_values, eto_values, n);
+    {
+      const auto start = std::chrono::steady_clock::now();
+      success = kernel(K_values, sig_values, eto_values, n);
+      const auto end = std::chrono::steady_clock::now();
+      elapsed_ms = std::chrono::duration<double, std::milli>(end - start).count();
     }
+
+    std::cout << program << " " << kernel_name << " kernel for "
+              << format_number(n) << " integration points: "
+              << format_number(elapsed_ms) << " ms\n";
+    std::cout << "TBB threads: " << tbb::info::default_concurrency() << "\n"; 
+    return success;
   }  // end of execute
 
 }  // namespace mgis::gpu
@@ -116,12 +123,19 @@ namespace mgis::gpu {
 int main() {
   auto success = true;
   constexpr std::size_t n = 10'000'000;
-  success = mgis::gpu::execute<mgis::gpu::is_timed>(
+  success = mgis::gpu::execute<mgis::gpu::is_timed, false>(
                 mgis::gpu::sequential_kernel, n, "elasticity2", "sequential") &&
             success;
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
-  success = mgis::gpu::execute<mgis::gpu::is_timed>(
-                mgis::gpu::stlpar_kernel, n, "elasticity2", "stlpar") &&
+#ifdef _NVHPC_STDPAR_GPU
+  constexpr auto stlpar_name = "stlpar-gpu";
+  constexpr bool use_gpu_timing = true;
+#else
+  constexpr auto stlpar_name = "stlpar-cpu";
+  constexpr bool use_gpu_timing = false;
+#endif
+  success = mgis::gpu::execute<mgis::gpu::is_timed, use_gpu_timing>(
+                mgis::gpu::stlpar_kernel, n, "elasticity2", stlpar_name) &&
             success;
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS */
   return success ? EXIT_SUCCESS : EXIT_FAILURE;
