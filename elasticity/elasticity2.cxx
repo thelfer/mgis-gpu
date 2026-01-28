@@ -16,6 +16,10 @@
 #include <locale>
 #include "MGIS/Config.hxx"
 
+#ifdef _NVHPC_STDPAR_GPU
+#include <cuda_runtime.h>
+#endif
+
 #ifdef MGIS_USE_STL_PARALLEL_ALGORITHMS
 #ifdef __cpp_lib_parallel_algorithm
 #define MGIS_HAS_STL_PARALLEL_ALGORITHMS
@@ -66,16 +70,33 @@ namespace mgis::gpu {
     auto sig_values = std::vector<real>(6 * n, real{});
     auto K_values = std::vector<real>(6 * 6 * n, real{});
     if constexpr (IsTimed) {
-      // warmup run with only 1 integration point
-      // this may sometimes be overkill, but it is sometimes very useful
-      // to bypass lazy-instantiation in some -dlto and -rdc cases
-      kernel(K_values, sig_values, eto_values, n);
+      // warmup run with 1 integration point (separate small vectors)
+      {
+        auto warmup_eto = std::vector<real>(6, real{});
+        auto warmup_sig = std::vector<real>(6, real{});
+        auto warmup_K = std::vector<real>(36, real{});
+        kernel(warmup_K, warmup_sig, warmup_eto, 1);
+      }
       // timed run
+#ifdef _NVHPC_STDPAR_GPU
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      cudaEventRecord(start);
+      const auto success = kernel(K_values, sig_values, eto_values, n);
+      cudaEventRecord(stop);
+      cudaEventSynchronize(stop);
+      float elapsed_ms;
+      cudaEventElapsedTime(&elapsed_ms, start, stop);
+      cudaEventDestroy(start);
+      cudaEventDestroy(stop);
+#else
       const auto start = std::chrono::steady_clock::now();
       const auto success = kernel(K_values, sig_values, eto_values, n);
       const auto end = std::chrono::steady_clock::now();
       const auto elapsed_ms =
           std::chrono::duration<double, std::milli>(end - start).count();
+#endif
       std::cout << program << " " << kernel_name << " kernel for "
                 << format_number(n) << " integration points: "
                 << format_number(elapsed_ms) << " ms\n";
