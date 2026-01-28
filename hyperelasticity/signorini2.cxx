@@ -1,5 +1,5 @@
 /*!
- * \file   signorini.cxx
+ * \file   signorini2.cxx
  * \brief
  * \author Thomas Helfer
  * \date   28/01/2026
@@ -20,26 +20,30 @@
 namespace mgis::gpu {
 
   bool sequential_kernel(std::span<mgis::real>,
+                         std::span<mgis::real>,
                          std::span<const real>,
                          const std::size_t);
 
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
   bool stlpar_kernel(std::span<mgis::real>,
+                     std::span<mgis::real>,
                      std::span<const real>,
                      const std::size_t);
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS*/
 
   using KernelType = bool (*)(std::span<mgis::real>,
+                              std::span<mgis::real>,
                               std::span<const real>,
                               const std::size_t);
 
   bool execute(const KernelType kernel, const std::size_t n) {
+    auto Dt_values = std::vector<real>(81 * n, real{});
     auto F_values = std::vector<real>(9 * n, real{});
     for (std::vector<real>::size_type i = 0; i != n; ++i) {
       F_values[i] = F_values[n + i] = F_values[2 * n + i] = 1;
     }
     auto sig_values = std::vector<real>(6 * n, real{});
-    return kernel(sig_values, F_values, n);
+    return kernel(Dt_values, sig_values, F_values, n);
   }  // end of execute
 
 }  // namespace mgis::gpu
