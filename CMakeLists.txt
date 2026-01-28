@@ -16,3 +16,4 @@ if(NOT MGIS_FUNCTION_SUPPORT)
 endif(NOT MGIS_FUNCTION_SUPPORT)
 
 add_subdirectory(elasticity)
+add_subdirectory(plasticity)
