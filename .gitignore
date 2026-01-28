@@ -1,0 +1,50 @@
+.*
+!/.gitignore
+
+# NVIDIA Nsight Compute reports
+*.ncu-rep
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+#CUDA
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+
+#Spack
+*.lock
+
+# IDES
+.vscode/
+.claude/
+
+# CMAKE BUILD
+build/
+installation/remote_deprecated/tfelgpu_installer.zip
+installation/remote/tfelgpu_installer.zip
