@@ -137,7 +137,7 @@ bool stlpar_kernel(std::span<real> sig_values, std::span<const real> F_values,
       StridedCoalescedMemoryAccessCompositeTensorsView<BasicLinearSpace, 9,
                                                        false>;
   auto F_view = ImmutableCompositeView{space, F_values};
-  auto Dt_view = CompositeView2{space, sig_values};
+  auto Dt_view = CompositeView2{space, Dt_values};
   auto sig_view = CompositeView{space, sig_values};
   const auto iranges = std::views::iota(size_type{}, n);
   std::for_each(std::execution::par, iranges.begin(), iranges.end(),
