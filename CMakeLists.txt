@@ -16,4 +16,5 @@ if(NOT MGIS_HAVE_TFEL)
 endif(NOT MGIS_HAVE_TFEL)
 
 add_subdirectory(elasticity)
+add_subdirectory(hyperelasticity)
 add_subdirectory(plasticity)
