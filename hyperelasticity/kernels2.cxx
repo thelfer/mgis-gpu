@@ -88,7 +88,7 @@ inline constexpr auto signorini = [](auto &Dt, auto &sig, const auto &F1) {
   /* isochoric part */
   const auto d2Pi_dI1b2 = 2 * C20;
   const auto dSi_dC = 2 * (d2Pi_dI1b2 * (dI1b_dC ^ dI1b_dC) +
-                           dPi_dI1b * d2I1b_dC2 + +dPi_dI2b * d2I2b_dC2);
+                           dPi_dI1b * d2I1b_dC2 + dPi_dI2b * d2I2b_dC2);
   const auto dS_degl = eval((dSv_dC + dSi_dC) / 2);
   // This is probably totally inefficient
   Dt =
