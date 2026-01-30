@@ -52,7 +52,7 @@ inline constexpr auto signorini = [](auto &sig, const auto &F1) {
   // Pv = K*(J-1)*(J-1)/2
   const auto dPv_dJ = K * (J - 1);
   const StressStensor Sv = dPv_dJ / J * dI3_dC;
-  /* iscochoric part */
+  /* isocochoric part */
   // I1b = J^{-2/3}*I1 = I1/(sqrt[3]{I3})     = I1*iJb
   // I2b = J^{-4/9}*I2 = I2/(sqrt[3]{I3})^{2} = I2*iJb*iJb
   const auto iJb = 1 / cbrt(I3);
