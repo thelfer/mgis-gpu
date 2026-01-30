@@ -123,7 +123,9 @@ bool sequential_kernel(std::span<real> Dt_values,
 } // end of sequential_kernel
 
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
-bool stlpar_kernel(std::span<real> sig_values, std::span<const real> F_values,
+bool stlpar_kernel(std::span<real> Dt_values,
+                   std::span<real> sig_values,
+                   std::span<const real> F_values,
                    const std::size_t n) {
   using namespace mgis::function;
   using Tensor = tfel::math::tensor<3u, real>;
