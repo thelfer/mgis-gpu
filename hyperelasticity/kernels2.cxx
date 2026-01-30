@@ -111,7 +111,7 @@ bool sequential_kernel(std::span<real> Dt_values,
       StridedCoalescedMemoryAccessCompositeTensorsView<BasicLinearSpace, 9,
                                                        false>;
   auto F_view = ImmutableCompositeView{space, F_values};
-  auto Dt_view = CompositeView2{space, sig_values};
+  auto Dt_view = CompositeView2{space, Dt_values};
   auto sig_view = CompositeView{space, sig_values};
   for (size_type idx = 0; idx != getSpaceSize(space); ++idx) {
     auto sig = sig_view.get<0, Stensor>(idx);
