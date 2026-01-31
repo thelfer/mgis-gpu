@@ -1,8 +1,8 @@
 /*!
- * \file   elasticity.cxx
+ * \file   plasticity.cxx
  * \brief
  * \author Thomas Helfer
- * \date   20/01/2026
+ * \date   28/01/2026
  */
 
 #include <version>
@@ -25,7 +25,7 @@
 #endif
 #endif /* MGIS_USE_STL_PARALLEL_ALGORITHMS */
 
-#if defined(_NVHPC_STDPAR_GPU) || defined(MGIS_GPU_HAS_CUDA_SUPPORT)
+#ifdef _NVHPC_STDPAR_GPU
 #include <cuda_runtime.h>
 #endif
 
@@ -54,22 +54,19 @@ namespace mgis::gpu {
     return oss.str();
   }
 
-  bool sequential_kernel(std::span<mgis::real>,
-                         std::span<const real>,
+  bool sequential_kernel(std::span<mgis::real>, std::span<mgis::real>,
+                         std::span<const mgis::real>, std::span<const real>,
                          const std::size_t);
 
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
-  bool stlpar_kernel(std::span<mgis::real>,
-                     std::span<const real>,
+  bool stlpar_kernel(std::span<mgis::real>, std::span<mgis::real>,
+                     std::span<const mgis::real>, std::span<const real>,
                      const std::size_t);
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS*/
 
-#ifdef MGIS_GPU_HAS_CUDA_SUPPORT
-  bool cuda_kernel(std::span<mgis::real>, std::span<const real>,
-                   const std::size_t);
-#endif /* MGIS_GPU_HAS_CUDA_SUPPORT */
-
   using KernelType = bool (*)(std::span<mgis::real>,
+                              std::span<mgis::real>,
+                              std::span<const real>,
                               std::span<const real>,
                               const std::size_t);
 
@@ -78,15 +75,17 @@ namespace mgis::gpu {
                const std::size_t n,
                std::string_view program,
                std::string_view kernel_name) {
-    const auto eto_values = std::vector<real>(6 * n, real{});
+    const auto eto_bts_values = std::vector<real>(6 * n, real{});
+    const auto eto_ets_values = std::vector<real>(6 * n, real{});
     auto sig_values = std::vector<real>(6 * n, real{});
+    auto isvs_values = std::vector<real>(7 * n, real{});
 
     if constexpr (!IsTimed) {
-      return kernel(sig_values, eto_values, n);
+      return kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
     }
 
     // warmup: triggers unified memory page faults + avoids lazy-instantiation
-    kernel(sig_values, eto_values, n);
+    kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
 
     // timed run
     double elapsed_ms;
@@ -98,7 +97,7 @@ namespace mgis::gpu {
       cudaEventCreate(&start);
       cudaEventCreate(&stop);
       cudaEventRecord(start);
-      success = kernel(sig_values, eto_values, n);
+      success = kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
       cudaEventRecord(stop);
       cudaEventSynchronize(stop);
       float gpu_ms;
@@ -110,7 +109,7 @@ namespace mgis::gpu {
 #endif
     {
       const auto start = std::chrono::steady_clock::now();
-      success = kernel(sig_values, eto_values, n);
+      success = kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
       const auto end = std::chrono::steady_clock::now();
       elapsed_ms = std::chrono::duration<double, std::milli>(end - start).count();
     }
@@ -121,67 +120,13 @@ namespace mgis::gpu {
     return success;
   }  // end of execute
 
-#ifdef MGIS_GPU_HAS_CUDA_SUPPORT
-  std::span<real> allocate(const std::size_t n) {
-    real *ptr;
-    cudaMalloc(&ptr, n * sizeof(real));
-    return std::span<real>(ptr, n);
-  }
-
-  void deallocate(std::span<real> s) {
-    if (!s.empty()) {
-      cudaFree(s.data());
-    }
-  }
-
-  template <bool IsTimed = false>
-  bool cuda_execute(const KernelType kernel,
-                    const std::size_t n,
-                    std::string_view program,
-                    std::string_view kernel_name) {
-    const auto eto_values = allocate(6 * n);
-    auto sig_values = allocate(6 * n);
-
-    if constexpr (!IsTimed) {
-      auto success = kernel(sig_values, eto_values, n);
-      deallocate(eto_values);
-      deallocate(sig_values);
-      return success;
-    }
-
-    // warmup
-    kernel(sig_values, eto_values, n);
-
-    // timed run with CUDA events
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-    auto success = kernel(sig_values, eto_values, n);
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float gpu_ms;
-    cudaEventElapsedTime(&gpu_ms, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    std::cout << program << " " << kernel_name << " kernel for "
-              << format_number(n) << " integration points: "
-              << format_number(static_cast<double>(gpu_ms)) << " ms\n";
-
-    deallocate(eto_values);
-    deallocate(sig_values);
-    return success;
-  }
-#endif /* MGIS_GPU_HAS_CUDA_SUPPORT */
-
 }  // namespace mgis::gpu
 
 int main() {
   auto success = true;
-  constexpr std::size_t n = 10'000'000;
+  constexpr std::size_t n = 1'000'000;
   success = mgis::gpu::execute<mgis::gpu::is_timed, false>(
-                mgis::gpu::sequential_kernel, n, "elasticity", "sequential") &&
+                mgis::gpu::sequential_kernel, n, "plasticity", "sequential") &&
             success;
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
 #ifdef _NVHPC_STDPAR_GPU
@@ -193,13 +138,8 @@ int main() {
   constexpr bool use_gpu_timing = false;
 #endif
   success = mgis::gpu::execute<mgis::gpu::is_timed, use_gpu_timing>(
-                mgis::gpu::stlpar_kernel, n, "elasticity", stlpar_name) &&
+                mgis::gpu::stlpar_kernel, n, "plasticity", stlpar_name) &&
             success;
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS */
-#ifdef MGIS_GPU_HAS_CUDA_SUPPORT
-  success = mgis::gpu::cuda_execute<mgis::gpu::is_timed>(
-                mgis::gpu::cuda_kernel, n, "elasticity", "cuda") &&
-            success;
-#endif /* MGIS_GPU_HAS_CUDA_SUPPORT */
   return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

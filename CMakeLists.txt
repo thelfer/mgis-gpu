@@ -11,9 +11,9 @@ find_package(MFrontGenericInterface REQUIRED)
 if(NOT MGIS_FUNCTION_SUPPORT)
   message(FATAL_ERROR "MGIS/Function is required")
 endif(NOT MGIS_FUNCTION_SUPPORT)
-if(NOT MGIS_FUNCTION_SUPPORT)
+if(NOT MGIS_HAVE_TFEL)
   message(FATAL_ERROR "TFEL support in MGIS is required")
-endif(NOT MGIS_FUNCTION_SUPPORT)
+endif(NOT MGIS_HAVE_TFEL)
 
 # CUDA support
 option(enable-cuda-kernels "produce kernels based on the CUDA programming model" OFF)
@@ -26,3 +26,5 @@ if(enable-cuda-kernels)
 endif(enable-cuda-kernels)
 
 add_subdirectory(elasticity)
+add_subdirectory(hyperelasticity)
+add_subdirectory(plasticity)
