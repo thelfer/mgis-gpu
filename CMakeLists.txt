@@ -20,6 +20,7 @@ option(enable-cuda-kernels "produce kernels based on the CUDA programming model"
 if(enable-cuda-kernels)
   set(CMAKE_CUDA_STANDARD 20)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  set(CMAKE_CUDA_ARCHITECTURES native)
   enable_language(CUDA)
   find_package(CUDAToolkit)
 endif(enable-cuda-kernels)

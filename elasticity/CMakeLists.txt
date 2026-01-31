@@ -7,6 +7,7 @@ add_executable(elasticity ${ELASTICITY_SOURCES})
 target_link_libraries(elasticity PRIVATE mgis::MFrontGenericInterface)
 if(enable-cuda-kernels)
   target_compile_definitions(elasticity PRIVATE "MGIS_GPU_HAS_CUDA_SUPPORT")
+  target_compile_options(elasticity PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>)
   target_link_libraries(elasticity PRIVATE CUDA::cudart)
 endif(enable-cuda-kernels)
 

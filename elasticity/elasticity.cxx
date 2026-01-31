@@ -51,7 +51,7 @@ namespace mgis::gpu {
 #ifdef MGIS_GPU_HAS_CUDA_SUPPORT
   std::span<real> allocate(const std::size_t n) {
     real *ptr;
-    cudaMalloc(&ptr, n);
+    cudaMalloc(&ptr, n * sizeof(real));
     return std::span<real>(ptr, n);
   }
 
@@ -76,14 +76,14 @@ namespace mgis::gpu {
 int main() {
   auto success = true;
   success =
-      mgis::gpu::execute(mgis::gpu::sequential_kernel, 100'000'000) && success;
+      mgis::gpu::execute(mgis::gpu::sequential_kernel, 10'000'000) && success;
 #ifdef MGIS_HAS_STL_PARALLEL_ALGORITHMS
   success =
-      mgis::gpu::execute(mgis::gpu::stlpar_kernel, 100'000'000) && success;
+      mgis::gpu::execute(mgis::gpu::stlpar_kernel, 10'000'000) && success;
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS */
 #ifdef MGIS_GPU_HAS_CUDA_SUPPORT
   success =
-      mgis::gpu::cuda_execute(mgis::gpu::cuda_kernel, 100'000'000) && success;
+      mgis::gpu::cuda_execute(mgis::gpu::cuda_kernel, 10'000'000) && success;
 #endif /* MGIS_GPU_HAS_CUDA_SUPPORT */
   return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }
