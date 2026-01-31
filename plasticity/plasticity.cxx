@@ -70,7 +70,7 @@ namespace mgis::gpu {
                               std::span<const real>,
                               const std::size_t);
 
-  template <bool IsTimed = false, bool UseGpuTiming = false>
+  template <bool IsTimed, bool UseGpuTiming>
   bool execute(const KernelType kernel,
                const std::size_t n,
                std::string_view program,
