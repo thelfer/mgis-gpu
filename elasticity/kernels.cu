@@ -23,11 +23,11 @@ namespace mgis::gpu{
 
   template <typename SigType, typename EtoType>
   __device__ void elasticity(SigType&& sig, EtoType&& eto) {
-    constexpr auto id = Stensor::Id();
-    constexpr auto young = real{150e9};
-    constexpr auto nu = real{1} / 3;
-    constexpr auto lambda = tfel::material::computeLambda(young, nu);
-    constexpr auto mu = tfel::material::computeMu(young, nu);
+    constexpr Stensor id = Stensor::Id();
+    constexpr real young = real{150e9};
+    constexpr real nu = real{1} / 3;
+    constexpr real lambda = tfel::material::computeLambda(young, nu);
+    constexpr real mu = tfel::material::computeMu(young, nu);
     sig = lambda * tfel::math::trace(eto) * id + 2 * mu * eto;
   }
 
@@ -45,9 +45,9 @@ namespace mgis::gpu{
   bool cuda_kernel(std::span<real> sig_values,
                    std::span<const real> eto_values,
                    const std::size_t n) {
-    auto space = BasicLinearSpace{n};
-    auto eto_view = ImmutableCompositeView{space, eto_values};
-    auto sig_view = CompositeView{space, sig_values};
+    BasicLinearSpace space{n};
+    ImmutableCompositeView eto_view{space, eto_values};
+    CompositeView sig_view{space, sig_values};
 
     constexpr int threads_per_block = 32;
     const int blocks = (n + threads_per_block - 1) / threads_per_block;

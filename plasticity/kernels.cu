@@ -28,22 +28,22 @@ namespace mgis::gpu {
             typename EtoBtsType, typename EtoEtsType>
   __device__ void plasticity(SigType&& sig, EelType&& eel, PType&& p,
                              EtoBtsType&& eto_bts, EtoEtsType&& eto_ets) {
-    constexpr auto id = Stensor::Id();
-    constexpr auto young = real{150e9};
-    constexpr auto nu = real{1} / 3;
-    constexpr auto s0 = stress{200e6};
-    constexpr auto H = stress{3e9};
-    constexpr auto lambda = tfel::material::computeLambda(young, nu);
-    constexpr auto mu = tfel::material::computeMu(young, nu);
-    const auto deto = eto_ets - eto_bts;
+    constexpr Stensor id = Stensor::Id();
+    constexpr real young = real{150e9};
+    constexpr real nu = real{1} / 3;
+    constexpr stress s0 = stress{200e6};
+    constexpr stress H = stress{3e9};
+    constexpr real lambda = tfel::material::computeLambda(young, nu);
+    constexpr real mu = tfel::material::computeMu(young, nu);
+    const Stensor deto = eto_ets - eto_bts;
     eel += deto;
-    const auto se = 2 * mu * tfel::math::deviator(eel);
-    const auto seq_e = tfel::math::sigmaeq(se);
-    const auto b = seq_e - s0 - H * p > stress{0};
+    const Stensor se = 2 * mu * tfel::math::deviator(eel);
+    const real seq_e = tfel::math::sigmaeq(se);
+    const bool b = seq_e - s0 - H * p > stress{0};
     if (b) {
-      const auto n = tfel::math::eval(3 * se / (2 * seq_e));
-      const auto cste = 1 / (H + 3 * mu);
-      const auto dp = (seq_e - s0 - H * p) * cste;
+      const Stensor n = tfel::math::eval(3 * se / (2 * seq_e));
+      const real cste = 1 / (H + 3 * mu);
+      const real dp = (seq_e - s0 - H * p) * cste;
       eel -= dp * n;
       p += dp;
     }
@@ -71,11 +71,11 @@ namespace mgis::gpu {
                    std::span<const real> eto_bts_values,
                    std::span<const real> eto_ets_values,
                    const std::size_t n) {
-    auto space = BasicLinearSpace{n};
-    auto eto_bts_view = ImmutableCompositeView{space, eto_bts_values};
-    auto eto_ets_view = ImmutableCompositeView{space, eto_ets_values};
-    auto sig_view = CompositeView{space, sig_values};
-    auto isvs_view = CompositeView2{space, isvs_values};
+    BasicLinearSpace space{n};
+    ImmutableCompositeView eto_bts_view{space, eto_bts_values};
+    ImmutableCompositeView eto_ets_view{space, eto_ets_values};
+    CompositeView sig_view{space, sig_values};
+    CompositeView2 isvs_view{space, isvs_values};
 
     constexpr int threads_per_block = 32;
     const int blocks = (n + threads_per_block - 1) / threads_per_block;
