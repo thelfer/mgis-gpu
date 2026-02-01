@@ -15,6 +15,16 @@ if(NOT MGIS_HAVE_TFEL)
   message(FATAL_ERROR "TFEL support in MGIS is required")
 endif(NOT MGIS_HAVE_TFEL)
 
+# CUDA support
+option(enable-cuda-kernels "produce kernels based on the CUDA programming model" OFF)
+if(enable-cuda-kernels)
+  set(CMAKE_CUDA_STANDARD 20)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  set(CMAKE_CUDA_ARCHITECTURES native)
+  enable_language(CUDA)
+  find_package(CUDAToolkit)
+endif(enable-cuda-kernels)
+
 add_subdirectory(elasticity)
 add_subdirectory(hyperelasticity)
 add_subdirectory(plasticity)

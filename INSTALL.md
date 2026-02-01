@@ -1,0 +1,1 @@
+cmake ../mgis-gpu/ -DCMAKE_BUILD_TYPE=Release -Denable-cuda-kernels=ON -DMFrontGenericInterface_DIR=/home/th202608/codes/mgis/master/install-python-3.10.12/share/mgis/cmake/ -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=89
