@@ -80,7 +80,8 @@ namespace mgis::gpu {
   bool execute(const KernelType kernel,
                const std::size_t n,
                std::string_view program,
-               std::string_view kernel_name) {
+               std::string_view kernel_name,
+               int num_threads = 0) {
     const auto eto_bts_values = std::vector<real>(6 * n, real{});
     const auto eto_ets_values = std::vector<real>(6 * n, real{});
     auto sig_values = std::vector<real>(6 * n, real{});
@@ -120,7 +121,11 @@ namespace mgis::gpu {
       elapsed_ms = std::chrono::duration<double, std::milli>(end - start).count();
     }
 
-    std::cout << program << " " << kernel_name << " kernel for "
+    std::cout << program << " " << kernel_name << " kernel";
+    if (num_threads > 0) {
+      std::cout << " with " << num_threads << " TBB threads";
+    }
+    std::cout << " for "
               << format_number(n) << " integration points: "
               << format_number(elapsed_ms) << " ms\n";
     return success;
@@ -139,17 +144,53 @@ namespace mgis::gpu {
     }
   }
 
+  struct CudaTimer {
+    cudaEvent_t start, stop;
+
+    CudaTimer() {
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+    }
+
+    ~CudaTimer() {
+      cudaEventDestroy(start);
+      cudaEventDestroy(stop);
+    }
+
+    void begin() {
+      cudaEventRecord(start);
+    }
+
+    float end() {
+      cudaEventRecord(stop);
+      cudaEventSynchronize(stop);
+      float ms;
+      cudaEventElapsedTime(&ms, start, stop);
+      return ms;
+    }
+  };
+
   template <bool IsTimed>
   bool cuda_execute(const KernelType kernel,
                     const std::size_t n,
                     std::string_view program,
                     std::string_view kernel_name) {
+    // 1. Allocate GPU buffers
     const auto eto_bts_values = allocate(6 * n);
     const auto eto_ets_values = allocate(6 * n);
     auto sig_values = allocate(6 * n);
     auto isvs_values = allocate(7 * n);
 
+    // 2. Prepare host data
+    std::vector<real> eto_bts_host(6 * n, double(0));
+    std::vector<real> eto_ets_host(6 * n, double(0));
+
+    // Initialize isvs to zero on device
+    cudaMemset(isvs_values.data(), 0, 7 * n * sizeof(real));
+
     if constexpr (!IsTimed) {
+      cudaMemcpy(eto_bts_values.data(), eto_bts_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMemcpy(eto_ets_values.data(), eto_ets_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
       auto success = kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
       deallocate(eto_bts_values);
       deallocate(eto_ets_values);
@@ -158,25 +199,47 @@ namespace mgis::gpu {
       return success;
     }
 
-    // warmup
+    // 3. Warmup (H2D + kernel + D2H)
+    cudaMemcpy(eto_bts_values.data(), eto_bts_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
+    cudaMemcpy(eto_ets_values.data(), eto_ets_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
     kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
+    std::vector<real> sig_warmup(6 * n);
+    std::vector<real> isvs_warmup(7 * n);
+    cudaMemcpy(sig_warmup.data(), sig_values.data(), 6 * n * sizeof(real), cudaMemcpyDeviceToHost);
+    cudaMemcpy(isvs_warmup.data(), isvs_values.data(), 7 * n * sizeof(real), cudaMemcpyDeviceToHost);
 
-    // timed run with CUDA events
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    // 4. Timed section
+    CudaTimer h2d_timer, kernel_timer, d2h_timer;
+
+    // H2D
+    h2d_timer.begin();
+    cudaMemcpy(eto_bts_values.data(), eto_bts_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
+    cudaMemcpy(eto_ets_values.data(), eto_ets_host.data(), 6 * n * sizeof(real), cudaMemcpyHostToDevice);
+    float h2d_ms = h2d_timer.end();
+
+    // Kernel
+    kernel_timer.begin();
     auto success = kernel(sig_values, isvs_values, eto_bts_values, eto_ets_values, n);
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float gpu_ms;
-    cudaEventElapsedTime(&gpu_ms, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    float kernel_ms = kernel_timer.end();
 
-    std::cout << program << " " << kernel_name << " kernel for "
-              << format_number(n) << " integration points: "
-              << format_number(static_cast<double>(gpu_ms)) << " ms\n";
+    // D2H
+    std::vector<real> sig_host(6 * n);
+    std::vector<real> isvs_host(7 * n);
+    d2h_timer.begin();
+    cudaMemcpy(sig_host.data(), sig_values.data(), 6 * n * sizeof(real), cudaMemcpyDeviceToHost);
+    cudaMemcpy(isvs_host.data(), isvs_values.data(), 7 * n * sizeof(real), cudaMemcpyDeviceToHost);
+    float d2h_ms = d2h_timer.end();
+
+    // Report
+    float transfer_ms = h2d_ms + d2h_ms;
+    float total_ms = h2d_ms + kernel_ms + d2h_ms;
+
+    std::cout << program << " " << kernel_name << ": "
+              << format_number(static_cast<double>(kernel_ms)) << " ms kernel, "
+              << format_number(static_cast<double>(transfer_ms)) << " ms transfers ("
+              << format_number(static_cast<double>(h2d_ms)) << " ms H2D, "
+              << format_number(static_cast<double>(d2h_ms)) << " ms D2H), "
+              << format_number(static_cast<double>(total_ms)) << " ms total\n";
 
     deallocate(eto_bts_values);
     deallocate(eto_ets_values);
@@ -198,13 +261,14 @@ int main() {
 #ifdef _NVHPC_STDPAR_GPU
   constexpr auto stlpar_name = "stlpar-gpu";
   constexpr bool use_gpu_timing = true;
+  constexpr int num_threads = 0;
 #else
-  std::cout << "TBB threads: " << tbb::info::default_concurrency() << "\n";
   constexpr auto stlpar_name = "stlpar-cpu";
   constexpr bool use_gpu_timing = false;
+  const int num_threads = tbb::info::default_concurrency();
 #endif
   success = mgis::gpu::execute<mgis::gpu::is_timed, use_gpu_timing>(
-                mgis::gpu::stlpar_kernel, n, "plasticity", stlpar_name) &&
+                mgis::gpu::stlpar_kernel, n, "plasticity", stlpar_name, num_threads) &&
             success;
 #endif /* MGIS_HAS_STL_PARALLEL_ALGORITHMS */
 #ifdef MGIS_GPU_HAS_CUDA_SUPPORT
