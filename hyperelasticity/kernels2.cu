@@ -11,7 +11,7 @@
 #include "MGIS/Function/BasicLinearSpace.hxx"
 #include "MGIS/Function/SharedSpace.hxx"
 #include "MGIS/Function/StridedCoalescedMemoryAccessFunctionViewBase.hxx"
-#include "MGIS/Function/Tensors.hxx"
+#include "MGIS/Function/TFEL/Tensors.hxx"
 
 namespace mgis::gpu {
 
