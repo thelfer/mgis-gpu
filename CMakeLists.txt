@@ -25,6 +25,14 @@ if(enable-cuda-kernels)
   find_package(CUDAToolkit)
 endif(enable-cuda-kernels)
 
+# testing
+set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
+# (must be placed *before* any add_subdirectory, cmake bug ?)
+enable_testing()
+
+# add subdirectory
+add_subdirectory(src)
 add_subdirectory(elasticity)
 add_subdirectory(hyperelasticity)
 add_subdirectory(plasticity)
+add_subdirectory(unit-tests)
