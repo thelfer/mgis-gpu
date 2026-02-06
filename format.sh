@@ -7,7 +7,7 @@
 
 if command -v clang-format &> /dev/null
 then
-  clang-format -i $(find . -name "*.hxx" -o -name "*.ixx" -o -name "*.cxx")
+  clang-format -i $(find . -name "*.hxx" -o -name "*.ixx" -o -name "*.cxx" -o -name "*.cu")
 fi
 
 if command -v yapf  &> /dev/null
