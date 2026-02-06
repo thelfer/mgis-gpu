@@ -31,7 +31,7 @@ namespace mgis::gpu::utilities {
       if (!updateData(ctx, data, inputs,
                       {.strided_output = opts.strided_output,
                        .number_of_components = opts.number_of_components})) {
-        data.clear();
+        return {};
       }
       return data;
     }
