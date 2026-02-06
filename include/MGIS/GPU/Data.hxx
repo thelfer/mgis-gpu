@@ -86,7 +86,7 @@ namespace mgis::gpu::utilities {
    * \param[in, out] ctx: execution context
    * \param[in] g: HDF5 group
    * \param[in] n: name of the data set
-   * \param[in] opts: options used to generate the data
+   * \param[in] opts: options used to update the data
    */
   MGIS_GPU_EXPORT [[nodiscard]] bool updateData(
       Context&,
