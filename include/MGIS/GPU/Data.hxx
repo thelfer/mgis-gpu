@@ -93,7 +93,7 @@ namespace mgis::gpu::utilities {
       std::span<real>,
       const H5::Group&,
       const std::string&,
-      const GenerateDataOptions& = {}) noexcept;
+      const UpdateDataOptions& = {}) noexcept;
 
 #endif /* MGIS_HAVE_HDF5 */
 
