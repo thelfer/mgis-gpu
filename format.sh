@@ -2,7 +2,7 @@
 #
 # This scripts uses:
 #
-# - `clang-format` to format `C++` sources and hearders
+# - `clang-format` to format `C++` sources and headers
 # - `yapf` to format `python` sources
 
 if command -v clang-format &> /dev/null
