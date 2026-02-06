@@ -57,7 +57,7 @@ namespace mgis::gpu::utilities {
    * \param[in, out] ctx: execution context
    * \param[out] data: output
    * \param[in] inputs: input data
-   * \param[in] opts: options used to generate the data
+   * \param[in] opts: options used to update the data
    */
   MGIS_GPU_EXPORT [[nodiscard]] bool updateData(
       Context&,
