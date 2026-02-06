@@ -67,6 +67,10 @@ namespace mgis::gpu::utilities {
     if (n == 0) {
       return true;
     }
+    if (inputs.empty()) {                                                                                         
+      return ctx.registerErrorMessage(                                                                            
+        "empty inputs with non-empty output data");                                                             
+    } 
     if (nc == 1) {
       // scalar case
       if (data.size() <= inputs.size()) {
